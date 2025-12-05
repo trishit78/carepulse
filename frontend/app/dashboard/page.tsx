@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { doctorAPI, appointmentAPI, Doctor, Appointment } from '@/lib/api';
+import { doctorAPI, appointmentAPI, Doctor, Appointment, AppointmentCountsByDate } from '@/lib/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 export default function DashboardPage() {
@@ -37,6 +37,22 @@ export default function DashboardPage() {
   });
   const [doctorFormError, setDoctorFormError] = useState('');
   const [doctorFormLoading, setDoctorFormLoading] = useState(false);
+  const [appointmentCounts, setAppointmentCounts] = useState<AppointmentCountsByDate[]>([]);
+
+  const loadAppointments = useCallback(async () => {
+    try {
+      const scope = user?.role === 'doctor' ? 'doctor' : undefined;
+      const response = await appointmentAPI.getAll(undefined, scope, user?.role === 'doctor');
+      if (response.success) {
+        setAppointments(response.data);
+        setAppointmentCounts(response.countsByDate || []);
+      }
+    } catch (error) {
+      console.error('Error loading appointments:', error);
+    } finally {
+      setLoadingAppointments(false);
+    }
+  }, [user?.role]);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -48,7 +64,7 @@ export default function DashboardPage() {
     if (isAuthenticated) {
       loadAppointments();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, loadAppointments]);
 
   const { data: doctors = [], isLoading: loadingDoctors } = useQuery({
     queryKey: ['doctors'],
@@ -72,19 +88,6 @@ export default function DashboardPage() {
       queryClient.invalidateQueries({ queryKey: ['doctors'] });
     },
   });
-
-  const loadAppointments = async () => {
-    try {
-      const response = await appointmentAPI.getAll();
-      if (response.success) {
-        setAppointments(response.data);
-      }
-    } catch (error) {
-      console.error('Error loading appointments:', error);
-    } finally {
-      setLoadingAppointments(false);
-    }
-  };
 
   const handleBookAppointment = (doctor: Doctor) => {
     setSelectedDoctor(doctor);
@@ -128,6 +131,7 @@ export default function DashboardPage() {
         setBookingError(response.message || 'Failed to book appointment');
       }
     } catch (error) {
+      console.error('Booking error:', error);
       setBookingError('Network error. Please try again.');
     } finally {
       setBookingLoading(false);
@@ -147,6 +151,7 @@ export default function DashboardPage() {
         alert(response.message || 'Failed to cancel appointment');
       }
     } catch (error) {
+      console.error('Cancel appointment error:', error);
       alert('Error cancelling appointment');
     }
   };
@@ -210,8 +215,9 @@ export default function DashboardPage() {
       }
 
       setDoctorFormOpen(false);
-    } catch (error: any) {
-      setDoctorFormError(error.message || 'Error creating doctor');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Error creating doctor';
+      setDoctorFormError(message);
     } finally {
       setDoctorFormLoading(false);
     }
@@ -263,6 +269,14 @@ export default function DashboardPage() {
     return null;
   }
 
+  const isDoctor = user?.role === 'doctor';
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todaysAppointments = isDoctor
+    ? appointments
+        .filter((a) => a.appointmentDate.slice(0, 10) === todayStr)
+        .sort((a, b) => new Date(a.appointmentDate).getTime() - new Date(b.appointmentDate).getTime())
+    : [];
+
   return (
     <div className="min-h-screen bg-zinc-900 text-white">
       <nav className="bg-zinc-800 border-b border-zinc-700">
@@ -300,75 +314,146 @@ export default function DashboardPage() {
             Welcome 👋
           </h2>
           <p className="text-gray-400">
-            Start the day with managing new appointments.
+            {isDoctor ? 'Manage today’s consultations and view your schedule.' : 'Start the day with managing new appointments.'}
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-zinc-800 rounded-lg p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-4xl font-bold">{stats.scheduled}</p>
-                <p className="text-gray-400 mt-2">Scheduled appointments</p>
+        {isDoctor ? (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="bg-zinc-800 rounded-lg p-6">
+                <p className="text-4xl font-bold">{todaysAppointments.length}</p>
+                <p className="text-gray-400 mt-2">Today&apos;s bookings</p>
               </div>
-              <div className="text-4xl">📅</div>
-            </div>
-          </div>
-          <div className="bg-zinc-800 rounded-lg p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-4xl font-bold">{stats.pending}</p>
-                <p className="text-gray-400 mt-2">Pending appointments</p>
+              <div className="bg-zinc-800 rounded-lg p-6">
+                <p className="text-4xl font-bold">
+                  {appointmentCounts.reduce((acc, c) => acc + c.count, 0)}
+                </p>
+                <p className="text-gray-400 mt-2">Total upcoming</p>
               </div>
-              <div className="text-4xl">⏳</div>
-            </div>
-          </div>
-          <div className="bg-zinc-800 rounded-lg p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-4xl font-bold">{stats.cancelled}</p>
-                <p className="text-gray-400 mt-2">Cancelled appointments</p>
+              <div className="bg-zinc-800 rounded-lg p-6">
+                <p className="text-4xl font-bold">
+                  {appointmentCounts[0]?.count || 0}
+                </p>
+                <p className="text-gray-400 mt-2">Earliest day load</p>
               </div>
-              <div className="text-4xl">⚠️</div>
             </div>
-          </div>
-        </div>
 
-        <div className="mb-8">
-          <h3 className="text-2xl font-bold mb-4">Available Doctors</h3>
-          {loadingDoctors ? (
-            <div className="text-gray-400">Loading doctors...</div>
-          ) : doctors.length === 0 ? (
-            <div className="text-gray-400">No doctors available at the moment.</div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {doctors.map((doctor) => (
-                <div key={doctor._id} className="bg-zinc-800 rounded-lg p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h4 className="text-xl font-semibold">{doctor.user.name}</h4>
-                      <p className="text-blue-400">{doctor.specialization}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-gray-400">${doctor.consultationFee}</p>
-                      <p className="text-sm text-yellow-400">⭐ {doctor.rating.average.toFixed(1)}</p>
-                    </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+              <div className="bg-zinc-800 rounded-lg p-6 lg:col-span-2">
+                <h3 className="text-2xl font-bold mb-4">Today&apos;s bookings</h3>
+                {loadingAppointments ? (
+                  <div className="text-gray-400">Loading...</div>
+                ) : todaysAppointments.length === 0 ? (
+                  <div className="text-gray-400">No bookings for today.</div>
+                ) : (
+                  <div className="space-y-4">
+                    {todaysAppointments.map((a) => (
+                      <div key={a._id} className="bg-zinc-900 rounded-lg p-4 flex justify-between items-center">
+                        <div>
+                          <p className="text-lg font-semibold">{a.patient.name}</p>
+                          <p className="text-gray-400 text-sm">{a.reason}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-gray-300">
+                            {new Date(a.appointmentDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(a.status)}`}>
+                            {getStatusIcon(a.status)} {a.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  {doctor.bio && (
-                    <p className="text-gray-400 text-sm mb-4 line-clamp-2">{doctor.bio}</p>
-                  )}
-                  <p className="text-sm text-gray-500 mb-4">{doctor.experience} years of experience</p>
-                  <button
-                    onClick={() => handleBookAppointment(doctor)}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md transition-colors"
-                  >
-                    Book Appointment
-                  </button>
-                </div>
-              ))}
+                )}
+              </div>
+
+              <div className="bg-zinc-800 rounded-lg p-6">
+                <h3 className="text-2xl font-bold mb-4">Calendar load</h3>
+                {appointmentCounts.length === 0 ? (
+                  <div className="text-gray-400">No upcoming bookings.</div>
+                ) : (
+                  <div className="space-y-3 max-h-[320px] overflow-y-auto">
+                    {appointmentCounts.map((c) => (
+                      <div key={c.date} className="flex items-center justify-between bg-zinc-900 rounded-md px-3 py-2">
+                        <span className="text-sm text-gray-200">{c.date}</span>
+                        <span className="text-sm font-semibold text-blue-400">{c.count} bookings</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          )}
-        </div>
+          </>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="bg-zinc-800 rounded-lg p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-4xl font-bold">{stats.scheduled}</p>
+                    <p className="text-gray-400 mt-2">Scheduled appointments</p>
+                  </div>
+                  <div className="text-4xl">📅</div>
+                </div>
+              </div>
+              <div className="bg-zinc-800 rounded-lg p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-4xl font-bold">{stats.pending}</p>
+                    <p className="text-gray-400 mt-2">Pending appointments</p>
+                  </div>
+                  <div className="text-4xl">⏳</div>
+                </div>
+              </div>
+              <div className="bg-zinc-800 rounded-lg p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-4xl font-bold">{stats.cancelled}</p>
+                    <p className="text-gray-400 mt-2">Cancelled appointments</p>
+                  </div>
+                  <div className="text-4xl">⚠️</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-8">
+              <h3 className="text-2xl font-bold mb-4">Available Doctors</h3>
+              {loadingDoctors ? (
+                <div className="text-gray-400">Loading doctors...</div>
+              ) : doctors.length === 0 ? (
+                <div className="text-gray-400">No doctors available at the moment.</div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {doctors.map((doctor) => (
+                    <div key={doctor._id} className="bg-zinc-800 rounded-lg p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <h4 className="text-xl font-semibold">{doctor.user.name}</h4>
+                          <p className="text-blue-400">{doctor.specialization}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-gray-400">${doctor.consultationFee}</p>
+                          <p className="text-sm text-yellow-400">⭐ {doctor.rating.average.toFixed(1)}</p>
+                        </div>
+                      </div>
+                      {doctor.bio && (
+                        <p className="text-gray-400 text-sm mb-4 line-clamp-2">{doctor.bio}</p>
+                      )}
+                      <p className="text-sm text-gray-500 mb-4">{doctor.experience} years of experience</p>
+                      <button
+                        onClick={() => handleBookAppointment(doctor)}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md transition-colors"
+                      >
+                        Book Appointment
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
 
         {doctorFormOpen && user?.role === 'admin' && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -596,83 +681,85 @@ export default function DashboardPage() {
           </div>
         )}
 
-        <div className="bg-zinc-800 rounded-lg overflow-hidden">
-          <div className="p-6 border-b border-zinc-700">
-            <h3 className="text-2xl font-bold">Your Appointments</h3>
-          </div>
-          {loadingAppointments ? (
-            <div className="p-6 text-gray-400">Loading appointments...</div>
-          ) : appointments.length === 0 ? (
-            <div className="p-6 text-gray-400">No appointments yet. Book your first appointment above!</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-zinc-900">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">#</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Patient</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Appointment</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Doctor</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-700">
-                  {appointments.map((appointment, index) => (
-                    <tr key={appointment._id} className="hover:bg-zinc-700/50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">{index + 1}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        {appointment.patient.name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(appointment.status)}`}>
-                          {getStatusIcon(appointment.status)} {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                        {new Date(appointment.appointmentDate).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                          hour: 'numeric',
-                          minute: '2-digit'
-                        })}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-xs font-medium mr-2">
-                            {appointment.doctor.user.name.charAt(0)}
-                          </div>
-                          <span className="text-sm">Dr. {appointment.doctor.user.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
-                          <button
-                            onClick={() => handleCancelAppointment(appointment._id)}
-                            className="text-red-400 hover:text-red-300 mr-4"
-                          >
-                            Cancel
-                          </button>
-                        )}
-                        {appointment.videoCallLink && (
-                          <a
-                            href={appointment.videoCallLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-green-400 hover:text-green-300"
-                          >
-                            Join Call
-                          </a>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        {!isDoctor && (
+          <div className="bg-zinc-800 rounded-lg overflow-hidden">
+            <div className="p-6 border-b border-zinc-700">
+              <h3 className="text-2xl font-bold">Your Appointments</h3>
             </div>
-          )}
-        </div>
+            {loadingAppointments ? (
+              <div className="p-6 text-gray-400">Loading appointments...</div>
+            ) : appointments.length === 0 ? (
+              <div className="p-6 text-gray-400">No appointments yet. Book your first appointment above!</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-zinc-900">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">#</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Patient</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Appointment</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Doctor</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-700">
+                    {appointments.map((appointment, index) => (
+                      <tr key={appointment._id} className="hover:bg-zinc-700/50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">{index + 1}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          {appointment.patient.name}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(appointment.status)}`}>
+                            {getStatusIcon(appointment.status)} {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                          {new Date(appointment.appointmentDate).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit'
+                          })}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-xs font-medium mr-2">
+                              {appointment.doctor.user.name.charAt(0)}
+                            </div>
+                            <span className="text-sm">Dr. {appointment.doctor.user.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
+                            <button
+                              onClick={() => handleCancelAppointment(appointment._id)}
+                              className="text-red-400 hover:text-red-300 mr-4"
+                            >
+                              Cancel
+                            </button>
+                          )}
+                          {appointment.videoCallLink && (
+                            <a
+                              href={appointment.videoCallLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-green-400 hover:text-green-300"
+                            >
+                              Join Call
+                            </a>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );

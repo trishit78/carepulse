@@ -80,25 +80,60 @@ export const createAppointment = async (req, res) => {
   }
 };
 
-// Get user's appointments
+// Get appointments (patient or doctor)
 export const getUserAppointments = async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { status } = req.query;
+    const role = req.user.role;
+    const { status, scope, includeCounts } = req.query;
 
-    let query = { patient: userId };
+    const isDoctorScope = scope === 'doctor' || role === 'doctor';
+
+    let query = {};
+
+    if (isDoctorScope) {
+      // find doctor profile for this user
+      const doctor = await Doctor.findOne({ user: userId });
+      if (!doctor) {
+        return res.status(404).json({
+          success: false,
+          message: 'Doctor profile not found'
+        });
+      }
+      query = { doctor: doctor._id };
+    } else {
+      query = { patient: userId };
+    }
     
     if (status) {
       query.status = status;
     }
 
     const appointments = await Appointment.find(query)
-      .sort({ appointmentDate: -1 })
-      .limit(50);
+      .sort(isDoctorScope ? { appointmentDate: 1 } : { appointmentDate: -1 })
+      .limit(isDoctorScope ? 200 : 50);
+
+    let countsByDate = undefined;
+    if (includeCounts === 'true') {
+      const agg = await Appointment.aggregate([
+        { $match: query },
+        {
+          $group: {
+            _id: {
+              $dateToString: { format: "%Y-%m-%d", date: "$appointmentDate" }
+            },
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { "_id": 1 } }
+      ]);
+      countsByDate = agg.map(item => ({ date: item._id, count: item.count }));
+    }
 
     res.json({
       success: true,
-      data: appointments
+      data: appointments,
+      countsByDate
     });
   } catch (error) {
     console.error('Get appointments error:', error);

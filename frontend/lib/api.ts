@@ -85,6 +85,11 @@ export interface Appointment {
   createdAt: string;
 }
 
+export interface AppointmentCountsByDate {
+  date: string; // YYYY-MM-DD
+  count: number;
+}
+
 // Get stored tokens
 export const getStoredTokens = () => {
   if (typeof window === 'undefined') return null;
@@ -260,9 +265,17 @@ export const appointmentAPI = {
     return await response.json();
   },
 
-  getAll: async (status?: string): Promise<{ success: boolean; data: Appointment[] }> => {
+  getAll: async (
+    status?: string,
+    scope?: 'doctor' | 'patient',
+    includeCounts?: boolean
+  ): Promise<{ success: boolean; data: Appointment[]; countsByDate?: AppointmentCountsByDate[] }> => {
     const authHeader = getAuthHeader();
-    const params = status ? `?status=${status}` : '';
+    const searchParams = new URLSearchParams();
+    if (status) searchParams.append('status', status);
+    if (scope) searchParams.append('scope', scope);
+    if (includeCounts) searchParams.append('includeCounts', 'true');
+    const params = searchParams.toString() ? `?${searchParams.toString()}` : '';
     
     const response = await fetch(`${API_BASE_URL}/appointments${params}`, {
       method: 'GET',
