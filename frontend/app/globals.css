@@ -8,8 +8,18 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-inter); /* Changed to Inter to match landing */
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-syne);
+
+  --color-primary: #3b4bf8;
+  --color-primary-foreground: #ffffff;
+
+  --color-accent: #ccff00;
+  --color-accent-foreground: #000000;
+
+  --color-muted: #f3f4f6;
+  --color-muted-foreground: #6b7280;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -19,8 +29,43 @@
   }
 }
 
+/* Custom Utilities from Landing */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .clip-text-image {
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+}
+
+/* Lenis Smooth Scroll */
+html.lenis, html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+.lenis.lenis-scrolling iframe {
+  pointer-events: none;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  overflow-x: hidden;
 }

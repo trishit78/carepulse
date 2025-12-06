@@ -4,163 +4,161 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { useForm } from 'react-hook-form';
+import { IoMdArrowBack } from 'react-icons/io';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 
 export default function SignUpPage() {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const { signup, isAuthenticated } = useAuth();
   const router = useRouter();
+  const [globalError, setGlobalError] = useState('');
 
-  // Redirect if already authenticated
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors },
+  } = useForm({
+    defaultValues: {
+      name: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+    },
+  });
+
   if (isAuthenticated) {
     router.push('/dashboard');
     return null;
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-
-    if (!email || !password) {
-      setError('Please fill in all required fields');
-      setIsLoading(false);
+  const onSubmit = async (data: any) => {
+    setGlobalError('');
+    
+    if (data.password !== data.confirmPassword) {
+      setGlobalError('Passwords do not match');
       return;
     }
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      setIsLoading(false);
-      return;
-    }
-
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
-      setIsLoading(false);
-      return;
-    }
-
-    const result = await signup(email, password, name || undefined);
+    const result = await signup(data.email, data.password, data.name || undefined);
     
     if (!result.success) {
-      setError(result.message);
-      setIsLoading(false);
+      setGlobalError(result.message);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-black px-4">
-      <div className="w-full max-w-md space-y-8 bg-white dark:bg-zinc-900 p-8 rounded-lg shadow-lg">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
-            Create your account
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-            Or{' '}
-            <Link
-              href="/signin"
-              className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
-            >
-              sign in to your existing account
-            </Link>
-          </p>
-        </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-4">
-              <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
-            </div>
-          )}
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Name (optional)
-              </label>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                autoComplete="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-zinc-800 px-3 py-2 text-gray-900 dark:text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                placeholder="Enter your name"
-              />
-            </div>
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Email address *
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-zinc-800 px-3 py-2 text-gray-900 dark:text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                placeholder="Enter your email"
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Password *
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-zinc-800 px-3 py-2 text-gray-900 dark:text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                placeholder="Enter your password"
-              />
-            </div>
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Confirm Password *
-              </label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-zinc-800 px-3 py-2 text-gray-900 dark:text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                placeholder="Confirm your password"
-              />
-            </div>
-          </div>
-
-          <div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? 'Creating account...' : 'Sign up'}
-            </button>
-          </div>
-        </form>
-        <div className="text-center">
-          <Link
-            href="/"
-            className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400"
-          >
-            ← Back to home
-          </Link>
-        </div>
+    <div className="flex h-screen items-center justify-center bg-background text-foreground">
+      <div className="flex flex-col gap-6 w-full max-w-md px-6">
+        <Link href="/" className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors w-fit">
+          <IoMdArrowBack className="h-4 w-4" />
+          <span>Go back</span>
+        </Link>
+        <Card className="w-full border-black/10 dark:border-white/10 shadow-xl shadow-black/5 dark:shadow-white/5 bg-white/50 dark:bg-black/50 backdrop-blur-xl">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-3xl font-bold font-display tracking-tight text-center">Create account</CardTitle>
+            <CardDescription className="text-center font-sans text-base">
+              Enter your details below to create your account.
+            </CardDescription>
+          </CardHeader>
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <CardContent className="grid gap-5">
+              {globalError && (
+                <div className="text-sm font-medium text-red-500 bg-red-50 dark:bg-red-900/10 p-3 rounded-lg border border-red-200 dark:border-red-800">
+                  {globalError}
+                </div>
+              )}
+              <div className="grid gap-2">
+                <Label htmlFor="name" className="font-medium">Name (optional)</Label>
+                <Input
+                  {...register("name")}
+                  id="name"
+                  type="text"
+                  placeholder="John Doe"
+                  className="h-12 rounded-lg bg-background/50"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="email" className="font-medium">Email</Label>
+                <Input
+                  {...register("email", { required: "Email is required" })}
+                  id="email"
+                  type="email"
+                  placeholder="mail@example.com"
+                  className="h-12 rounded-lg bg-background/50"
+                />
+                {errors.email && (
+                  <p className="text-sm font-medium text-red-500">{errors.email.message as string}</p>
+                )}
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="password" className="font-medium">Password</Label>
+                <Input
+                  {...register("password", { 
+                    required: "Password is required",
+                    minLength: { value: 6, message: "Password must be at least 6 characters" }
+                  })}
+                  id="password"
+                  type="password"
+                  placeholder="Create a password"
+                  className="h-12 rounded-lg bg-background/50"
+                />
+                {errors.password && (
+                  <p className="text-sm font-medium text-red-500">{errors.password.message as string}</p>
+                )}
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="confirmPassword" className="font-medium">Confirm Password</Label>
+                <Input
+                  {...register("confirmPassword", { 
+                    required: "Please confirm your password",
+                    validate: (val: string) => {
+                      if (watch('password') != val) {
+                        return "Your passwords do not match";
+                      }
+                    }
+                  })}
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="Confirm your password"
+                  className="h-12 rounded-lg bg-background/50"
+                />
+                {errors.confirmPassword && (
+                  <p className="text-sm font-medium text-red-500">{errors.confirmPassword.message as string}</p>
+                )}
+              </div>
+            </CardContent>
+            <CardFooter className="flex flex-col gap-4 mt-2">
+              <Button type="submit" variant="primary" className="w-full text-base font-semibold shadow-lg shadow-primary/25 hover:shadow-primary/40">
+                Create account
+              </Button>
+              <div className="relative w-full">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-muted-foreground/20" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">Or</span>
+                </div>
+              </div>
+              <Link href="/signin" className="w-full">
+                <Button variant="outline" className="w-full text-base font-medium border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5">
+                  Sign in to existing account
+                </Button>
+              </Link>
+            </CardFooter>
+          </form>
+        </Card>
       </div>
     </div>
   );
 }
-
