@@ -156,6 +156,36 @@ export default function DashboardPage() {
     }
   };
 
+  const handleStartCall = async (appointmentId: string) => {
+    try {
+      const response = await appointmentAPI.startCall(appointmentId);
+      if (response.success && response.joinUrl) {
+        window.open(response.joinUrl, '_blank');
+        // Refresh appointments to update UI
+        loadAppointments();
+      } else {
+        alert(response.message || 'Failed to start call');
+      }
+    } catch (error) {
+      console.error('Start call error:', error);
+      alert('Error starting call. Please try again.');
+    }
+  };
+
+  const handleJoinCall = async (appointmentId: string) => {
+    try {
+      const response = await appointmentAPI.joinCall(appointmentId);
+      if (response.success && response.joinUrl) {
+        window.open(response.joinUrl, '_blank');
+      } else {
+        alert(response.message || 'Failed to join call');
+      }
+    } catch (error) {
+      console.error('Join call error:', error);
+      alert('Error joining call. Please try again.');
+    }
+  };
+
   const handleOpenDoctorForm = () => {
     setDoctorFormOpen(true);
     setDoctorFormError('');
@@ -349,19 +379,29 @@ export default function DashboardPage() {
                 ) : (
                   <div className="space-y-4">
                     {todaysAppointments.map((a) => (
-                      <div key={a._id} className="bg-zinc-900 rounded-lg p-4 flex justify-between items-center">
-                        <div>
-                          <p className="text-lg font-semibold">{a.patient.name}</p>
-                          <p className="text-gray-400 text-sm">{a.reason}</p>
+                      <div key={a._id} className="bg-zinc-900 rounded-lg p-4">
+                        <div className="flex justify-between items-center mb-3">
+                          <div>
+                            <p className="text-lg font-semibold">{a.patient.name}</p>
+                            <p className="text-gray-400 text-sm">{a.reason}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm text-gray-300">
+                              {new Date(a.appointmentDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(a.status)}`}>
+                              {getStatusIcon(a.status)} {a.status}
+                            </span>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm text-gray-300">
-                            {new Date(a.appointmentDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(a.status)}`}>
-                            {getStatusIcon(a.status)} {a.status}
-                          </span>
-                        </div>
+                        {a.status !== 'cancelled' && a.status !== 'completed' && (
+                          <button
+                            onClick={() => handleStartCall(a._id)}
+                            className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md transition-colors"
+                          >
+                            Start Call (Host)
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -741,15 +781,13 @@ export default function DashboardPage() {
                               Cancel
                             </button>
                           )}
-                          {appointment.videoCallLink && (
-                            <a
-                              href={appointment.videoCallLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                          {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
+                            <button
+                              onClick={() => handleJoinCall(appointment._id)}
                               className="text-green-400 hover:text-green-300"
                             >
                               Join Call
-                            </a>
+                            </button>
                           )}
                         </td>
                       </tr>

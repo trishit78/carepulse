@@ -33,13 +33,19 @@ const appointmentSchema = new mongoose.Schema({
     enum: ['pending', 'scheduled', 'completed', 'cancelled'],
     default: 'pending'
   },
+  videoMeetingId: {
+    type: String,
+    default: null,
+    index: true
+  },
+  videoProvider: {
+    type: String,
+    enum: ['internal', 'livekit', 'twilio'],
+    default: 'internal'
+  },
   videoCallLink: {
     type: String,
-    default: null
-  },
-  meetingId: {
-    type: String,
-    default: null
+    default: null // optional/display only
   },
   duration: {
     type: Number,

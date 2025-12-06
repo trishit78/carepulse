@@ -4,7 +4,9 @@ import {
   getUserAppointments,
   getAppointmentById,
   updateAppointmentStatus,
-  cancelAppointment
+  cancelAppointment,
+  startCall,
+  joinCall
 } from '../controllers/appointmentController.js';
 import { authenticateToken } from '../middleware/authMiddleware.js';
 
@@ -18,6 +20,8 @@ router.get('/', getUserAppointments);
 router.get('/:id', getAppointmentById);
 router.patch('/:id', updateAppointmentStatus);
 router.post('/:id/cancel', cancelAppointment);
+router.post('/:id/start-call', startCall);
+router.post('/:id/join-call', joinCall);
 
 export default router;
 

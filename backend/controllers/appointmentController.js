@@ -1,6 +1,17 @@
+import axios from 'axios';
 import Appointment from '../models/Appointment.js';
 import Doctor from '../models/Doctor.js';
 import User from '../models/User.js';
+
+const VIDEO_SERVICE_URL = process.env.VIDEO_SERVICE_URL || 'http://localhost:4000';
+const VIDEO_SERVICE_SECRET = process.env.VIDEO_SERVICE_SECRET || 'my-secret-key-123';
+
+// Warn if using default secret
+if (!VIDEO_SERVICE_SECRET) {
+  console.warn('⚠️  WARNING: VIDEO_SERVICE_SECRET is not set in .env file!');
+  console.warn('⚠️  Please add VIDEO_SERVICE_SECRET to your backend/.env file');
+  console.warn('⚠️  It must match INTERNAL_SECRET in videocall/.env');
+}
 
 // Create appointment
 export const createAppointment = async (req, res) => {
@@ -293,6 +304,248 @@ export const cancelAppointment = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error cancelling appointment'
+    });
+  }
+};
+
+// DOCTOR START CALL
+export const startCall = async (req, res) => {
+  try {
+    const appointmentId = req.params.id;
+    const userId = req.user.userId;
+    const userRole = req.user.role;
+
+    // Check if user is doctor
+    if (userRole !== 'doctor') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only doctors can start calls'
+      });
+    }
+
+    // Find doctor profile for the logged-in user first
+    const doctor = await Doctor.findOne({ user: userId }).populate('user');
+    if (!doctor) {
+      return res.status(403).json({
+        success: false,
+        message: 'Doctor profile not found for your account'
+      });
+    }
+
+    // Ensure we have the user ID correctly
+    const doctorUserId = doctor.user?._id?.toString() || doctor.user?.toString() || userId.toString();
+
+    //////////////////////////////////////////////////////////////////////////////
+    // Find appointment and verify it belongs to this doctor
+    const appointment = await Appointment.findOne({
+      _id: appointmentId,
+      doctor: doctor._id
+    });
+    
+
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Appointment not found or not assigned to you'
+      });
+    }
+    
+    
+    if (appointment.status === 'cancelled') {
+      return res.status(400).json({
+        success: false,
+        message: 'Appointment cancelled'
+      });
+    }
+    
+    // If no meeting yet → create one (idempotent)
+    if (!appointment.videoMeetingId) {
+      try {
+        if (!VIDEO_SERVICE_SECRET) {
+          console.error('VIDEO_SERVICE_SECRET is not set in environment variables');
+          return res.status(500).json({
+            success: false,
+            message: 'Video service configuration error'
+          });
+        }
+
+        console.log('Creating video session for appointment:', appointment._id);
+
+        const createResp = await axios.post(
+          `${VIDEO_SERVICE_URL}/sessions`,
+          {
+            appointmentId: appointment._id.toString(),
+            doctorId: doctorUserId, // Use doctor's user ID, not doctor document ID
+            patientId: appointment.patient.toString()
+          },
+          {
+            headers: { 
+              'X-Internal-Secret': VIDEO_SERVICE_SECRET,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+
+        appointment.videoMeetingId = createResp.data.sessionId;
+        appointment.videoCallLink = createResp.data.baseUrl || null;
+        await appointment.save();
+      } catch (error) {
+        console.error('Video service error:', error.response?.data || error.message);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to create video session',
+          error: error.response?.data?.message || error.message
+        });
+      }
+    }
+
+    // Now request the doctor's join URL
+
+    try {
+      if (!VIDEO_SERVICE_SECRET) {
+        console.error('VIDEO_SERVICE_SECRET is not set in environment variables');
+        return res.status(500).json({
+          success: false,
+          message: 'Video service configuration error'
+        });
+      }
+
+      console.log('Requesting join URL for session:', appointment.videoMeetingId);
+
+      const joinResp = await axios.post(
+        `${VIDEO_SERVICE_URL}/sessions/${appointment.videoMeetingId}/join`,
+        {
+          role: 'doctor',
+          userId: userId.toString() // Ensure it's a string
+        },
+        {
+          headers: { 
+            'X-Internal-Secret': VIDEO_SERVICE_SECRET,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!joinResp.data || !joinResp.data.joinUrl) {
+        console.error('Invalid response from video service:', joinResp.data);
+        return res.status(500).json({
+          success: false,
+          message: 'Invalid response from video service',
+          error: 'Missing joinUrl in response'
+        });
+      }
+
+      console.log('Successfully generated join URL for session:', appointment.videoMeetingId);
+
+      res.json({
+        success: true,
+        joinUrl: joinResp.data.joinUrl,
+        sessionId: appointment.videoMeetingId
+      });
+    } catch (error) {
+      console.error('Video service join error:', error.response?.data || error.message);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to generate join URL',
+        error: error.response?.data?.message || error.message
+      });
+    }
+  } catch (error) {
+    console.error('Start call error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+// PATIENT JOIN CALL
+export const joinCall = async (req, res) => {
+  try {
+    const appointmentId = req.params.id;
+    const userId = req.user.userId;
+    const userRole = req.user.role;
+
+    // Check if user is patient or admin
+    if (userRole !== 'patient' && userRole !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only patients can join calls'
+      });
+    }
+
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Appointment not found'
+      });
+    }
+
+    // Verify patient owns this appointment (unless admin)
+    if (userRole !== 'admin' && appointment.patient.toString() !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not your appointment'
+      });
+    }
+
+    if (appointment.status === 'cancelled') {
+      return res.status(400).json({
+        success: false,
+        message: 'Appointment cancelled'
+      });
+    }
+
+    if (!appointment.videoMeetingId) {
+      return res.status(409).json({
+        success: false,
+        message: 'Doctor has not started the call yet'
+      });
+    }
+
+    // Request patient join URL
+    try {
+      if (!VIDEO_SERVICE_SECRET) {
+        console.error('VIDEO_SERVICE_SECRET is not set in environment variables');
+        return res.status(500).json({
+          success: false,
+          message: 'Video service configuration error'
+        });
+      }
+
+      const joinResp = await axios.post(
+        `${VIDEO_SERVICE_URL}/sessions/${appointment.videoMeetingId}/join`,
+        {
+          role: 'patient',
+          userId: userId
+        },
+        {
+          headers: { 
+            'X-Internal-Secret': VIDEO_SERVICE_SECRET,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      res.json({
+        success: true,
+        joinUrl: joinResp.data.joinUrl,
+        sessionId: appointment.videoMeetingId
+      });
+    } catch (error) {
+      console.error('Video service join error:', error.response?.data || error.message);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to generate join URL',
+        error: error.response?.data?.message || error.message
+      });
+    }
+  } catch (error) {
+    console.error('Join call error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
     });
   }
 };

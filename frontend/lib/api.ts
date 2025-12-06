@@ -315,5 +315,33 @@ export const appointmentAPI = {
     
     return await response.json();
   },
+
+  startCall: async (id: string): Promise<{ success: boolean; joinUrl?: string; sessionId?: string; message?: string }> => {
+    const authHeader = getAuthHeader();
+    
+    const response = await fetch(`${API_BASE_URL}/appointments/${id}/start-call`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': authHeader,
+      },
+    });
+    
+    return await response.json();
+  },
+
+  joinCall: async (id: string): Promise<{ success: boolean; joinUrl?: string; sessionId?: string; message?: string }> => {
+    const authHeader = getAuthHeader();
+    
+    const response = await fetch(`${API_BASE_URL}/appointments/${id}/join-call`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': authHeader,
+      },
+    });
+    
+    return await response.json();
+  },
 };
 
