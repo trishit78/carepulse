@@ -13,6 +13,7 @@ import { Work } from "@/components/home/Work";
 import { Process } from "@/components/home/Process";
 import { Services } from "@/components/home/Services";
 import { FAQ } from "@/components/home/FAQ";
+import { AiFab } from "@/components/home/AiFab";
 import { Footer } from "@/components/layout/Footer";
 
 export default function Home() {
@@ -39,6 +40,7 @@ export default function Home() {
       <Process />
       <Services />
       <FAQ />
+      <AiFab />
       <Footer />
     </main>
   );
