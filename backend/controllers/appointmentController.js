@@ -550,3 +550,46 @@ export const joinCall = async (req, res) => {
   }
 };
 
+// Delete appointment
+export const deleteAppointment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.userId;
+    const role = req.user.role;
+
+    const appointment = await Appointment.findById(id);
+
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Appointment not found'
+      });
+    }
+
+    // Authorization: Only Admin or the Patient who owns the appointment can delete
+    // (Doctors usually cancel, but if needed they could delete too - sticking to patient for now based on context)
+    const isPatient = appointment.patient.toString() === userId;
+    const isAdmin = role === 'admin';
+
+    if (!isPatient && !isAdmin) {
+       return res.status(403).json({
+        success: false,
+        message: 'Unauthorized to delete this appointment'
+      });
+    }
+
+    await Appointment.findByIdAndDelete(id);
+
+    res.json({
+      success: true,
+      message: 'Appointment deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete appointment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting appointment'
+    });
+  }
+};
+

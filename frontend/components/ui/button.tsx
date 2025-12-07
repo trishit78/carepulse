@@ -19,6 +19,7 @@ const buttonVariants = cva(
         ghost: "hover:bg-slate-100 hover:text-black",
         link: "text-primary underline-offset-4 hover:underline",
         neon: "bg-accent text-black hover:bg-white hover:scale-105 duration-300 shadow-[0_0_20px_rgba(204,255,0,0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.5)]",
+        destructive: "bg-red-500 text-white hover:bg-red-600 dark:hover:bg-red-600 shadow-sm",
       },
       size: {
         default: "h-12 px-8 py-2",

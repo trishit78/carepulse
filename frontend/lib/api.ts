@@ -343,5 +343,19 @@ export const appointmentAPI = {
     
     return await response.json();
   },
+
+  delete: async (id: string): Promise<{ success: boolean; message: string }> => {
+    const authHeader = getAuthHeader();
+    
+    const response = await fetch(`${API_BASE_URL}/appointments/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': authHeader,
+      },
+    });
+    
+    return await response.json();
+  },
 };
 

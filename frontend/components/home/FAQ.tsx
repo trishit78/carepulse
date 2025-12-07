@@ -2,53 +2,70 @@
 
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Plus, Minus, ArrowUpRight } from "lucide-react"
+import { ArrowUpRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
 
 const faqs = [
   {
-    question: "What are your focus areas as a UI/UX design agency?",
-    answer: (
-      <div className="space-y-4 text-slate-600 leading-relaxed">
-        <p>
-          Back in 2021, Wavespace started with one simple goal: to create great user experiences that leave a mark. Over the years, we've grown from a small team to a trusted UI UX design agency for startups, SaaS brands, and forward-thinking businesses around the world.
-        </p>
-        <p>
-          Our focus is always on making designs that look great and work well. As a team of UX experts, we love working with new tech like AI and Web3, building easy-to-use answers for tricky problems. Whether it's a mobile app for a startup or a SaaS tool built to grow, we make sure every screen is both good-looking and easy to use.
-        </p>
-        <p>
-          At Wavespace, we take time to know your brand and your users. From planning to testing, we tweak every part to make smooth and fun user paths. Our skills include UI UX design, web building, branding, and more, but we love turning ideas into designs that work.
-        </p>
-        <p>
-          What makes us a top UI UX agency is our love for fresh ideas and teamwork. We don't just make designs; we work with you to bring your idea to life. Each project is a chance to build something amazing—and we can't wait to do it for you.
-        </p>
-      </div>
-    )
+    question: "What is this Telemedicine platform?",
+    answer: "This platform enables patients to consult with doctors remotely through secure video calls, book appointments digitally, and access medical guidance using AI-powered assistance. It improves healthcare accessibility and reduces the need for physical hospital visits."
   },
   {
-    question: "Why is UI/UX design important for your business growth?",
-    answer: "UI/UX design is crucial because it directly impacts customer satisfaction and retention. A well-designed product not only attracts users but keeps them engaged, leading to higher conversion rates and business growth."
+    question: "How do I book an appointment?",
+    answer: "Appointments can be booked either directly through the web dashboard or through WhatsApp automated booking, where users can schedule consultations by chatting with the appointment bot."
   },
   {
-    question: "My website isn't generating enough leads. How can your design help?",
-    answer: "We analyze your current site to identify friction points. By improving navigation, clarifying your value proposition, and optimizing call-to-action placements, we create a user journey that drives conversions."
+    question: "Do I need to install any additional application?",
+    answer: "No. You can access consultations directly from the website and also book appointments via WhatsApp without installing separate apps."
   },
   {
-    question: "What separates Wavespace from other top UI/UX design agencies?",
-    answer: "Our unique blend of aesthetic excellence and data-driven strategy separates us. We don't just design for looks; we design for performance, ensuring your product solves real user problems while looking world-class."
+    question: "Is video consultation supported?",
+    answer: "Yes, our platform supports real-time one-on-one video consultations using WebRTC for smooth and secure audio-video communication."
   },
   {
-    question: "How could you help us redesign our app, website, or enterprise/B2B software?",
-    answer: "We start with a comprehensive audit of your existing platform, followed by user research. We then move to wireframing and prototyping, ensuring we address core usability issues before delivering the final polished UI."
+    question: "How secure is my medical data?",
+    answer: "Your data is encrypted and protected with modern security standards, including JWT-based secure authentication and protected role-based access for doctors and patients."
   },
   {
-    question: "Do you work with startups or only with B2B/enterprise companies?",
-    answer: "We work with both! We love the agility of startups and helping them define their MVP, but we also have the process and rigor required for large-scale enterprise transformations."
+    question: "Can doctors manage appointments and patient data through the system?",
+    answer: "Yes. Doctors have a dedicated dashboard where they can manage appointments, view patient history, conduct consultations, and generate prescriptions."
   },
   {
-    question: "Can a redesign boost more traffic and enhance user experience?",
-    answer: "Absolutely. A redesign often improves site speed, mobile responsiveness, and SEO structure, all of which contribute to higher organic traffic. Simpler navigation also encourages users to stay longer and explore more."
+    question: "What features does the AI chatbot offer?",
+    answer: "The AI chatbot provides basic medical assistance, summaries of prescriptions, and helps interpret medical reports. In future releases, it will integrate with advanced LLM-based AI doctor models for preliminary diagnosis support."
+  },
+  {
+    question: "Can I use social login to sign up?",
+    answer: "Yes. We support secure sign-in via email/password, Google, and other social login options for faster access."
+  },
+  {
+    question: "How do reminders and notifications work?",
+    answer: "The system sends automated notifications and reminders through WhatsApp and email to ensure patients never miss their appointments."
+  },
+  {
+    question: "Does the platform support online payments?",
+    answer: "Payment gateway integration is part of the next phase of development. Our architecture already supports adding secure online payments soon."
+  },
+  {
+    question: "Is this platform suitable for clinics and hospitals?",
+    answer: "Yes. It is designed as a scalable SaaS solution, meaning it can serve independent doctors, clinics, or multi-branch hospitals."
+  },
+  {
+    question: "What devices are supported?",
+    answer: "The platform works on mobile phones, tablets, and desktops with a stable internet connection."
+  },
+  {
+    question: "What makes this system different from existing telemedicine apps?",
+    answer: "Unlike typical telemedicine solutions, our platform includes WhatsApp automation, AI assistance, real-time dashboards, and future AI doctor model integration, offering a more intelligent and seamless healthcare experience."
+  },
+  {
+    question: "Can I access consultation history and prescriptions later?",
+    answer: "Yes, all previous consultation records and digital prescriptions are stored in your secure dashboard."
+  },
+  {
+    question: "Is the platform available 24/7?",
+    answer: "Yes, appointment booking and chat support are available 24/7. Video consultations depend on doctor availability."
   }
 ]
 
