@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@source "../../../packages/ai-chat-widget";
 @import "tw-animate-css";
 
 :root {

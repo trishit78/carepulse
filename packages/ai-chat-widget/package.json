@@ -1,0 +1,15 @@
+{
+  "name": "@carepulse/ai-chat-widget",
+  "version": "0.0.1",
+  "private": true,
+  "main": "src/index.ts",
+  "module": "src/index.ts",
+  "types": "src/index.ts",
+  "sideEffects": false,
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0",
+    "framer-motion": ">=11.0.0",
+    "lucide-react": "*"
+  }
+}
