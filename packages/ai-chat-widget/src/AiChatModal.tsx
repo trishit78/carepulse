@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Sparkles, 
@@ -15,7 +16,9 @@ import {
   Calendar,
   FileText,
   CheckCircle,
-  Pill
+  Pill,
+  File as FileIcon,
+  Image as ImageIcon
 } from "lucide-react";
 
 type Role = "user" | "assistant";
@@ -35,7 +38,9 @@ export function AiChatModal({ open, onClose, apiEndpoint }: AiChatModalProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -45,19 +50,35 @@ export function AiChatModal({ open, onClose, apiEndpoint }: AiChatModalProps) {
     scrollToBottom();
   }, [messages, loading]);
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
   async function handleSend(textOverride?: string) {
     const text = textOverride || input.trim();
-    if (!text || loading) return;
+    if ((!text && files.length === 0) || loading) return;
 
     setInput("");
-    setMessages((prev) => [...prev, { role: "user", text }]);
+    setFiles([]);
+    setMessages((prev) => [...prev, { role: "user", text: text || (files.length > 0 ? "Sent attachments" : "") }]);
     setLoading(true);
 
     try {
+      const formData = new FormData();
+      formData.append("message", text);
+      files.forEach((file) => {
+        formData.append("files", file);
+      });
+
       const res = await fetch(apiEndpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text })
+        body: formData,
       });
 
       const data = await res.json();
@@ -80,8 +101,8 @@ export function AiChatModal({ open, onClose, apiEndpoint }: AiChatModalProps) {
   const suggestions = [
     { icon: Search, text: "Search for doctors", action: "Find me a cardiologist" },
     { icon: Calendar, text: "Schedule appointment", action: "I need to book an appointment" },
-    { icon: FileText, text: "Analyze medical report", action: "Can you analyze this report?" },
-    { icon: Pill, text: "Prescription summary", action: "Summarize my prescription" },
+    { icon: FileText, text: "Analyze medical report", action: "Can you summarize this report in simple terms and highlight anything I should discuss with my doctor?" },
+    { icon: Pill, text: "Prescription summary", action: "Can you summarize this prescription in simple terms?" },
   ];
 
   return (
@@ -156,7 +177,28 @@ export function AiChatModal({ open, onClose, apiEndpoint }: AiChatModalProps) {
                       {m.role === "assistant" && (
                          <div className="mb-1 text-[10px] text-gray-400 font-medium uppercase tracking-wider">CarePulse AI</div>
                       )}
-                      {m.text}
+                      
+                      {m.role === "user" ? (
+                        <div className="whitespace-pre-wrap">{m.text}</div>
+                      ) : (
+                         <div className="text-sm leading-relaxed space-y-2">
+                           <ReactMarkdown 
+                             components={{
+                               ul: ({node, ...props}) => <ul className="list-disc pl-4 space-y-1" {...props} />,
+                               ol: ({node, ...props}) => <ol className="list-decimal pl-4 space-y-1" {...props} />,
+                               li: ({node, ...props}) => <li className="pl-1" {...props} />,
+                               h1: ({node, ...props}) => <h1 className="text-lg font-bold mt-2 mb-1" {...props} />,
+                               h2: ({node, ...props}) => <h2 className="text-base font-bold mt-2 mb-1" {...props} />,
+                               h3: ({node, ...props}) => <h3 className="text-sm font-bold mt-1" {...props} />,
+                               strong: ({node, ...props}) => <strong className="font-semibold text-gray-900" {...props} />,
+                               a: ({node, ...props}) => <a className="text-blue-500 hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
+                               p: ({node, ...props}) => <div className="mb-2 last:mb-0" {...props} />,
+                             }}
+                           >
+                             {m.text}
+                           </ReactMarkdown>
+                         </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -177,6 +219,21 @@ export function AiChatModal({ open, onClose, apiEndpoint }: AiChatModalProps) {
           {/* Input Area */}
           <div className="p-4 bg-white">
             <div className="relative group">
+              {/* File Chips */}
+              {files.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-2">
+                  {files.map((file, index) => (
+                    <div key={index} className="flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-700 animate-in slide-in-from-bottom-2 fade-in duration-200">
+                      {file.type.includes("image") ? <ImageIcon className="w-3 h-3" /> : <FileIcon className="w-3 h-3" />}
+                      <span className="truncate max-w-[150px]">{file.name}</span>
+                      <button onClick={() => removeFile(index)} className="hover:text-red-500 transition-colors">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -196,7 +253,20 @@ export function AiChatModal({ open, onClose, apiEndpoint }: AiChatModalProps) {
                 
                 <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
                     <div className="flex items-center gap-1">
-                        <button type="button" className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                        <input 
+                          type="file" 
+                          ref={fileInputRef} 
+                          className="hidden" 
+                          multiple 
+                          accept=".pdf,image/*"
+                          onChange={handleFileSelect}
+                        />
+                        <button 
+                          type="button" 
+                          onClick={() => fileInputRef.current?.click()}
+                          className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                          title="Attach files"
+                        >
                             <Paperclip className="w-4 h-4" />
                         </button>
                         <button type="button" className="hidden sm:flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
@@ -206,9 +276,9 @@ export function AiChatModal({ open, onClose, apiEndpoint }: AiChatModalProps) {
                     </div>
                     <button 
                         type="submit" 
-                        disabled={!input.trim() && !loading}
+                        disabled={(!input.trim() && files.length === 0) && !loading}
                         className={`p-1.5 rounded-lg transition-all duration-200 ${
-                            input.trim() 
+                            (input.trim() || files.length > 0)
                                 ? "bg-blue-600 text-white shadow-md hover:bg-blue-700" 
                                 : "bg-gray-100 text-gray-300 cursor-not-allowed"
                         }`}
