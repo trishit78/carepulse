@@ -342,7 +342,8 @@ export default function DashboardPage() {
   if (isLoading) return <div className="flex min-h-screen items-center justify-center bg-background text-foreground">Loading...</div>;
   if (!isAuthenticated) return null;
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  // Use local date for "today" to avoid timezone mismatches (e.g. late night in IST is previous day in UTC)
+  const todayStr = new Date().toLocaleDateString('en-CA');
   const todaysAppointments = isDoctor
     ? appointments
         .filter((a) => a.appointmentDate.slice(0, 10) === todayStr)

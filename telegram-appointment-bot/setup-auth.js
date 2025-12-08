@@ -4,9 +4,9 @@ const fs = require('fs');
 const path = require('path');
 
 const BASE_URL = 'http://localhost:5000/api/auth';
-const EMAIL = 'patient@example.com';
-const PASSWORD = 'password123';
-const NAME = 'Test Patient';
+const EMAIL = 'bot@carepulse.com';
+const PASSWORD = 'botsecurepassword123';
+const NAME = 'CarePulse Bot Admin';
 
 async function setupAuth() {
     console.log(`Checking auth for ${EMAIL}...`);

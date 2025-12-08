@@ -483,7 +483,9 @@ export const joinCall = async (req, res) => {
     }
 
     // Verify patient owns this appointment (unless admin)
-    if (userRole !== 'admin' && appointment.patient.toString() !== userId) {
+    const patientId = appointment.patient?._id?.toString() || appointment.patient?.toString();
+
+    if (userRole !== 'admin' && patientId !== userId) {
       return res.status(403).json({
         success: false,
         message: 'Not your appointment'
