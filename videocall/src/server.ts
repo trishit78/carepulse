@@ -30,7 +30,11 @@ if (missingVars.length > 0) {
   console.error('Please create a .env file in the videocall folder with these variables');
 }
 
+import { Server } from 'socket.io';
+import http from 'http';
+
 const app = express();
+const httpServer = http.createServer(app);
 const PORT = process.env.PORT || 4000;
 
 // Middleware
@@ -46,6 +50,51 @@ initSfuNodesFromEnv();
 
 // Connect to database
 connectDatabase();
+
+// Socket.IO Signaling
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*", // Allow all origins for simplicity (or configure based on CLIENT_BASE_URL)
+    methods: ["GET", "POST"]
+  }
+});
+
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id);
+
+  socket.on('join-room', (roomId, userId) => {
+    console.log(`User ${userId} joining room ${roomId}`);
+    socket.join(roomId);
+    socket.to(roomId).emit('user-connected', userId);
+
+    socket.on('disconnect', () => {
+      console.log(`User ${userId} disconnected`);
+      socket.to(roomId).emit('user-disconnected', userId);
+    });
+  });
+
+  // Relay WebRTC signals
+  socket.on('offer', (payload) => {
+    io.to(payload.target).emit('offer', payload);
+  });
+
+  socket.on('answer', (payload) => {
+    io.to(payload.target).emit('answer', payload);
+  });
+
+  socket.on('ice-candidate', (payload) => {
+    io.to(payload.target).emit('ice-candidate', payload);
+  });
+  
+  // Alternative broadcasting for simple 1-1 rooms (mesh)
+  socket.on('signal', (data) => {
+      // Broadcast to everyone else in the room
+      const { room, ...rest } = data;
+      socket.to(room).emit('signal', { sender: socket.id, ...rest });
+  });
+
+});
+
 
 // Public routes (must be before API routes)
 // Serve frontend for /join/:sessionId - this is a public route for users to join video calls
@@ -81,7 +130,7 @@ app.get('/debug/secret', (req, res) => {
 app.use('/', sessionRoutes);
 
 // Start server
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`Video Call Service running on port ${PORT}`);
   console.log(`Client base URL: ${process.env.CLIENT_BASE_URL || 'http://localhost:4000'}`);
 });
