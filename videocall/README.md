@@ -1,140 +1,71 @@
-# Video Call Service
+# CarePulse Video Service 📹
 
-A standalone microservice for handling video call sessions in the telemedicine application.
+A dedicated microservice for handling real-time video consultations between doctors and patients. It implements a Peer-to-Peer (P2P) WebRTC architecture facilitated by a Socket.IO signaling server.
 
-## Features
+## 🚀 Tech Stack
 
-- Create video sessions per appointment
-- Generate secure JWT tokens for participants
-- Role-based permissions (doctor = host, patient = participant)
-- Simple WebRTC-based video call UI
-- Stateless and horizontally scalable
+- **Signaling Server:** Node.js + Express + Socket.IO
+- **Client Protocol:** WebRTC (RTCPeerConnection)
+- **Transport:** UDP/TCP (via ICE Candidates)
+- **Security:** JWT Authentication (for session validity)
 
-## Setup
+## 🏗️ Architecture Explained
 
-1. Install dependencies:
-```bash
-npm install
-```
+Most video call implementations require two distinct phases: **Signaling** (Handshake) and **Media Transport** (Video/Audio).
 
-2. **Create `.env` file in the `videocall` folder:**
-   
-   Create a file named `.env` in the `videocall` directory with the following content:
-   ```env
-   PORT=4000
-   MONGO_URI=mongodb://localhost:27017/videocall
-   INTERNAL_SECRET=your-internal-secret-key-change-this
-   VIDEO_JWT_SECRET=your-video-jwt-secret-key-change-this
-   CLIENT_BASE_URL=http://localhost:4000
-   SFU_NODES=sfu-1,sfu-2
-   ```
-   
-   **IMPORTANT:** 
-   - The `INTERNAL_SECRET` value must match the `VIDEO_SERVICE_SECRET` in your telemedicine backend `.env` file
-   - Use a strong, random string for both secrets in production
+### 1. Signaling (Socket.IO)
+Before two devices can exchange video, they must discover each other and agree on codecs/parameters. Since they cannot see each other on the internet directly (due to NATs/Firewalls), we use a **Signaling Server**.
 
-4. Build the project:
-```bash
-npm run build
-```
+- **Socket.IO** is used to create a real-time websocket channel.
+- **Events:**
+  - `join-room`: Authenticates user and puts them in a specific session room.
+  - `user-connected`: Notifies existing users that a peer has joined.
+  - `signal`: Relays WebRTC metadata (SDP Offers/Answers and ICE Candidates) between peers.
 
-5. Start the server:
-```bash
-npm start
-```
+### 2. WebRTC (P2P Mesh)
+Once the signaling exchange is complete, the browser establishes a direct connection to the other peer:
 
-For development with auto-reload:
-```bash
-npm run dev
-```
+- **RTCPeerConnection:** The core browser API used.
+- **ICE Candidates:** Network packets describing how to connect to a device (IP:Port).
+- **SDP (Session Description Protocol):** Describes the media capabilities (Codec, Resolution).
 
-## API Endpoints
+**Flow:**
+1.  **Offer:** Peer A creates an SDP Offer and sends it via Socket.IO.
+2.  **Answer:** Peer B receives the Offer, sets it as remote description, creates an SDP Answer, and sends it back.
+3.  **Connection:** Direct media stream (P2P) begins.
 
-### POST /sessions
+*Note: The architecture includes `sfuService` definitions for potential scaling to a Selective Forwarding Unit (SFU) model, but currently operates in Mesh (P2P) mode for minimal latency in 1:1 calls.*
 
-Create a video session for an appointment.
+## ✨ Features
 
-**Headers:**
-```
-X-Internal-Secret: <INTERNAL_SECRET>
-```
+- **Secure Access:** Users must possess a valid, signed JWT from the main backend to join.
+- **Picture-in-Picture (PiP) Layout:**
+    - Remote video fills the screen.
+    - Local video is minimized in the bottom-right.
+- **Controls:** Mute Audio, Disable Video, Leave Call.
+- **Responsive:** Works on desktop and mobile browsers.
 
-**Request:**
-```json
-{
-  "appointmentId": "apt_123",
-  "doctorId": "doc_456",
-  "patientId": "usr_789"
-}
-```
+## 🛠️ Setup & Running
 
-**Response:**
-```json
-{
-  "sessionId": "sess_abc",
-  "roomName": "room_sess_abc",
-  "sfuNodeId": "sfu-1",
-  "baseUrl": "http://localhost:4000/join/sess_abc"
-}
-```
+1.  **Install Dependencies:**
+    ```bash
+    npm install
+    ```
 
-### POST /sessions/:sessionId/join
+2.  **Environment Variables:**
+    Create a `.env` file:
+    ```env
+    PORT=4000
+    CLIENT_BASE_URL=http://localhost:3000
+    INTERNAL_SECRET=your_backend_communication_secret
+    ```
 
-Get a join URL for a participant.
+3.  **Run Service:**
+    ```bash
+    npm run dev
+    ```
+    Service runs at `http://localhost:4000`.
 
-**Headers:**
-```
-X-Internal-Secret: <INTERNAL_SECRET>
-```
-
-**Request:**
-```json
-{
-  "role": "doctor",
-  "userId": "doc_456"
-}
-```
-
-**Response:**
-```json
-{
-  "joinUrl": "http://localhost:4000/join/sess_abc?token=<jwt>",
-  "expiresIn": 3600
-}
-```
-
-## Frontend
-
-The service includes a simple video call UI accessible at:
-```
-http://localhost:4000/join/:sessionId?token=<jwt>
-```
-
-The UI supports:
-- Video/audio streaming
-- Mute/unmute controls
-- Camera on/off
-- Role-based permissions
-- Leave call functionality
-
-## Security
-
-- All API endpoints require `X-Internal-Secret` header
-- JWT tokens are short-lived (1 hour)
-- Tokens include role and permissions
-- Never trust client-provided role information
-
-## Architecture
-
-- **Stateless**: All state stored in MongoDB
-- **Scalable**: Multiple instances can run simultaneously
-- **SFU-ready**: Designed to work with SFU nodes (LiveKit, Twilio, etc.)
-
-## Notes
-
-The current implementation includes a basic WebRTC UI. For production, integrate with:
-- LiveKit SDK
-- Twilio Video SDK
-- Agora SDK
-- Or your preferred SFU solution
-
+4.  **Usage:**
+    Users are redirected here from the main Dashboard:
+    `http://localhost:4000/join/<session_id>?token=<jwt_token>`

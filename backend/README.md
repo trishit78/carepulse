@@ -1,139 +1,76 @@
-# Backend Authentication API
+# CarePulse Backend API
 
-A Node.js/Express backend with JWT-based authentication.
+The RESTful API service powering the CarePulse platform. It handles user authentication, data management, and business logic for appointments and doctors.
 
-## Features
+## 🚀 Tech Stack
 
-- User signup
-- User signin
-- User signout
-- JWT token-based authentication
-- Password hashing with bcrypt
-- Refresh token support
+- **Runtime:** Node.js
+- **Framework:** Express.js
+- **Database:** MongoDB (Mongoose ODM)
+- **Authentication:** JSON Web Tokens (JWT)
+- **Security:** bcryptjs (hashing), cors
 
-## Setup
+## ✨ Features
 
-1. Install dependencies:
-```bash
-npm install
-```
+- **User Management:**
+  - Sign up/Sign in (Patient & Doctor)
+  - Role-based access control (Patient, Doctor, Admin)
+  - Telegram account linking
+- **Doctor Management:**
+  - Doctor profiles (Specialization, Ratings, Availability)
+  - Search and filter doctors
+- **Appointment System:**
+  - Book/Cancel/Delete appointments
+  - Status management (Pending, Scheduled, Completed)
+  - Video call session management
+- **Real-time:**
+  - Socket.IO integration (optional extension)
 
-2. Create a `.env` file based on `.env.example`:
-```bash
-cp .env.example .env
-```
+## 🛠️ Setup & Running
 
-3. Update the `.env` file with your own secret keys.
+1.  **Install Dependencies:**
+    ```bash
+    npm install
+    ```
 
-4. Start the server:
-```bash
-npm start
-```
+2.  **Environment Variables:**
+    Create a `.env` file in the `backend` folder:
+    ```env
+    PORT=5000
+    MONGO_URI=mongodb://localhost:27017/carepulse
+    JWT_SECRET=your_super_secret_jwt_key
+    JWT_REFRESH_SECRET=your_super_secret_refresh_key
+    ```
 
-For development with auto-reload:
-```bash
-npm run dev
-```
+3.  **Run Development Server:**
+    ```bash
+    npm run dev
+    ```
+    The API will be available at `http://localhost:5000`.
 
-## API Endpoints
+## 📡 API Endpoints
 
-### POST `/api/auth/signup`
-Create a new user account.
+### Auth
+- `POST /api/auth/signup` - Register new user
+- `POST /api/auth/signin` - Login
+- `GET /api/auth/me` - Get current user info
 
-**Request Body:**
-```json
-{
-  "email": "user@example.com",
-  "password": "password123",
-  "name": "John Doe" // optional
-}
-```
+### Doctors
+- `GET /api/doctors` - List all doctors
+- `POST /api/doctors` - Create doctor profile (Admin only)
+- `GET /api/doctors/search` - Search by specialization
 
-**Response:**
-```json
-{
-  "success": true,
-  "message": "User created successfully",
-  "data": {
-    "user": {
-      "id": 1,
-      "email": "user@example.com",
-      "name": "John Doe",
-      "createdAt": "2024-01-01T00:00:00.000Z"
-    },
-    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-  }
-}
-```
+### Appointments
+- `GET /api/appointments` - Get user's appointments
+- `POST /api/appointments` - Book new appointment
+- `POST /api/appointments/:id/start-call` - Initiate video call
+- `POST /api/appointments/:id/join-call` - Join video call
 
-### POST `/api/auth/signin`
-Sign in with email and password.
+### Telegram
+- `POST /api/telegram/link-token` - Generate token for bot linking
 
-**Request Body:**
-```json
-{
-  "email": "user@example.com",
-  "password": "password123"
-}
-```
+## 🗄️ Database Models
 
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Sign in successful",
-  "data": {
-    "user": {
-      "id": 1,
-      "email": "user@example.com",
-      "name": "John Doe",
-      "createdAt": "2024-01-01T00:00:00.000Z"
-    },
-    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-  }
-}
-```
-
-### POST `/api/auth/signout`
-Sign out (requires authentication).
-
-**Headers:**
-```
-Authorization: Bearer <accessToken>
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Sign out successful"
-}
-```
-
-### GET `/api/health`
-Health check endpoint.
-
-**Response:**
-```json
-{
-  "status": "OK",
-  "message": "Server is running"
-}
-```
-
-## Authentication
-
-Protected routes require an `Authorization` header:
-```
-Authorization: Bearer <accessToken>
-```
-
-## Notes
-
-- This implementation uses in-memory storage for users. For production, replace with a database (MongoDB, PostgreSQL, etc.).
-- Make sure to change the JWT secrets in production.
-- The access token expires in 1 hour by default (configurable via `JWT_EXPIRES_IN`).
-- The refresh token expires in 7 days by default (configurable via `JWT_REFRESH_EXPIRES_IN`).
-
+- **User:** Base user account (email, password, role).
+- **Doctor:** Extended profile for doctors (linked to User).
+- **Appointment:** Connects Patient (User) and Doctor.

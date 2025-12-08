@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CarePulse Frontend
 
-## Getting Started
+This is the main frontend application for the CarePulse telemedicine platform. Built with Next.js 14, it serves as the primary interface for patients, doctors, and administrators.
 
-First, run the development server:
+## 🚀 Tech Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Framework:** [Next.js 14](https://nextjs.org/) (App Router)
+- **Language:** TypeScript
+- **Styling:** Tailwind CSS
+- **UI Components:** Shadcn UI (Radix Primitives)
+- **Animations:** Framer Motion, GSAP
+- **State/Data Fetching:** TanStack Query (React Query)
+- **Icons:** Lucide React
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## ✨ Features
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Landing Page:** Modern, animated landing page showcasing platform features.
+- **Authentication:** JWT-based auth with secure context management.
+- **Patient Dashboard:**
+  - View upcoming appointments
+  - Book new appointments with doctors
+  - View stats (Scheduled, Pending, Cancelled)
+  - Join video calls directly
+  - Link Telegram account (QR/Code generation)
+- **Doctor Dashboard:**
+  - View daily schedule
+  - Manage appointment requests (Accept/Cancel)
+  - Start video calls
+  - View patient history
+- **Admin Features:**
+  - Register new doctors
+- **Video Call Integration:** Seamless redirect to the video call service.
+- **AI Integration:** Floating AI assistant widget for checkups.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🛠️ Setup & Running
 
-## Learn More
+1.  **Install Dependencies:**
+    ```bash
+    npm install
+    ```
 
-To learn more about Next.js, take a look at the following resources:
+2.  **Environment Variables:**
+    Create a `.env.local` file in the root of `apps/web`:
+    ```env
+    NEXT_PUBLIC_API_URL=http://localhost:5000/api
+    ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3.  **Run Development Server:**
+    ```bash
+    npm run dev
+    ```
+    The app will be available at `http://localhost:3000`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 📁 Project Structure
 
-## Deploy on Vercel
+- `app/`: Next.js App Router pages and layouts.
+  - `(auth)/`: Authentication routes (signin, signup).
+  - `dashboard/`: Protected dashboard views.
+- `components/`: Reusable UI components.
+  - `ui/`: Base Shadcn UI components.
+  - `home/`: Landing page sections.
+  - `layout/`: Header, Footer, etc.
+- `lib/`: Utilities and API definitions (`api.ts`).
+- `contexts/`: React Contexts (AuthContext).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🔗 Key Integrations
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Backend API:** Connects to `http://localhost:5000` for all data operations.
+- **Telegram:** Generates link tokens to connect to the Telegram bot.
+- **Video Service:** Redirects users to `http://localhost:4000/join/...` with signed tokens.
