@@ -25,8 +25,8 @@ const syne = Syne({
 });
 
 export const metadata: Metadata = {
-  title: "Wavespace | Global UI/UX Design Agency",
-  description: "Global UI/UX design agency helping startups and enterprises create digital products.",
+  title: "CarePulse | Smart Healthcare Management",
+  description: "CarePulse is a comprehensive healthcare management platform connecting patients with doctors for appointments and video consultations.",
 };
 
 export default function RootLayout({

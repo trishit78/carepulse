@@ -53,9 +53,9 @@ export function Header() {
 
         <div className="flex items-center gap-4">
           {isAuthenticated ? (
-            <Link href="/contact">
+            <Link href="/dashboard">
               <Button variant="primary" size="lg" className="hidden md:inline-flex rounded-full px-8 h-12 text-base font-medium">
-                Contact Us <ArrowUpRight className="ml-2 w-4 h-4" />
+                Dashboard <ArrowUpRight className="ml-2 w-4 h-4" />
               </Button>
             </Link>
           ) : (
