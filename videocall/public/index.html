@@ -192,6 +192,32 @@
     .video-participant.local .participant-role {
         display: none; /* Hide role on small local video */
     }
+
+    /* AI avatar (no webcam) */
+    .video-participant.ai-avatar-placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, rgba(59, 75, 248, 0.2), rgba(59, 75, 248, 0.05));
+      border: 1px solid rgba(59, 75, 248, 0.3);
+    }
+    .video-participant.ai-avatar-placeholder .ai-avatar {
+      width: 40%;
+      max-width: 200px;
+      color: rgba(255, 255, 255, 0.9);
+    }
+    .video-participant.ai-avatar-placeholder .ai-avatar svg {
+      width: 100%;
+      height: auto;
+    }
+    .video-participant.ai-avatar-placeholder.remote {
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 0;
+      border: none;
+    }
     
     .participant-name {
       font-weight: 600;

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { doctorAPI, appointmentAPI, Doctor, Appointment, AppointmentCountsByDate } from '@/lib/api';
+import { doctorAPI, appointmentAPI, aiConsultationAPI, Doctor, Appointment, AppointmentCountsByDate } from '@/lib/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { 
@@ -28,7 +28,8 @@ import {
   CheckCircle, 
   XCircle, 
   Video,
-  Trash
+  Trash,
+  Bot
 } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 
@@ -98,6 +99,7 @@ export default function DashboardPage() {
   const [doctorFormError, setDoctorFormError] = useState('');
   const [doctorFormLoading, setDoctorFormLoading] = useState(false);
   const [appointmentCounts, setAppointmentCounts] = useState<AppointmentCountsByDate[]>([]);
+  const [aiConsultationLoading, setAiConsultationLoading] = useState(false);
 
   // Derived State
   const isDoctor = user?.role === 'doctor';
@@ -250,6 +252,23 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Join call error:', error);
       alert('Error joining call. Please try again.');
+    }
+  };
+
+  const handleJoinAiDoctor = async () => {
+    setAiConsultationLoading(true);
+    try {
+      const response = await aiConsultationAPI.start();
+      if (response.success && response.joinUrl) {
+        window.open(response.joinUrl, '_blank');
+      } else {
+        alert(response.message || 'Failed to start AI consultation');
+      }
+    } catch (error) {
+      console.error('AI consultation error:', error);
+      alert('Error starting AI consultation. Please try again.');
+    } finally {
+      setAiConsultationLoading(false);
     }
   };
 
@@ -504,6 +523,32 @@ export default function DashboardPage() {
                     </CardContent>
                  </Card>
               </div>
+
+              {/* AI Doctor – join call */}
+              <Card className="overflow-hidden border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 dark:from-primary/10 dark:to-primary/5">
+                <CardContent className="p-6 flex flex-col sm:flex-row items-center justify-between gap-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-4 rounded-2xl bg-primary/10 dark:bg-primary/20">
+                      <Bot className="w-10 h-10 text-primary" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold font-display">Talk to AI Doctor</h2>
+                      <p className="text-muted-foreground text-sm mt-1">
+                        Start a video call and speak with our AI assistant for guidance. No appointment needed.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    size="lg"
+                    className="gap-2 shrink-0"
+                    onClick={handleJoinAiDoctor}
+                    disabled={aiConsultationLoading}
+                  >
+                    <Video className="w-5 h-5" />
+                    {aiConsultationLoading ? 'Starting…' : 'Join call with AI Doctor'}
+                  </Button>
+                </CardContent>
+              </Card>
 
                {/* Doctors List */}
                <section className="space-y-6">

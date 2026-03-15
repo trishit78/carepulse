@@ -359,3 +359,18 @@ export const appointmentAPI = {
   },
 };
 
+// AI consultation: start a video call with the AI doctor
+export const aiConsultationAPI = {
+  start: async (): Promise<{ success: boolean; joinUrl?: string; sessionId?: string; message?: string }> => {
+    const authHeader = getAuthHeader();
+    const response = await fetch(`${API_BASE_URL}/ai-consultation/start`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': authHeader,
+      },
+    });
+    return await response.json();
+  },
+};
+

@@ -85,7 +85,7 @@ io.on('connection', (socket) => {
   socket.on('ice-candidate', (payload) => {
     io.to(payload.target).emit('ice-candidate', payload);
   });
-  
+
   // Alternative broadcasting for simple 1-1 rooms (mesh)
   socket.on('signal', (data) => {
       // Broadcast to everyone else in the room
@@ -93,6 +93,17 @@ io.on('connection', (socket) => {
       socket.to(room).emit('signal', { sender: socket.id, ...rest });
   });
 
+  // Relay patient audio to others in the room (e.g. AI doctor)
+  socket.on('patient-audio', (data) => {
+    for (const room of socket.rooms) {
+      if (room !== socket.id) socket.to(room).emit('patient-audio', data);
+    }
+  });
+
+  // AI doctor sends ai-audio; broadcast to the room so patient hears it
+  socket.on('ai-audio', ({ roomId, audio }: { roomId: string; audio: string }) => {
+    if (roomId && audio != null) io.to(roomId).emit('ai-audio', audio);
+  });
 });
 
 

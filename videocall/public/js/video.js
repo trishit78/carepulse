@@ -7,6 +7,12 @@ let currentSessionId = null;
 let socket = null;
 let isMuted = false;
 let isCameraOff = false;
+let isAiDoctorSession = false; // true when role === 'ai-doctor' or URL has aiConsultation=true
+let aiAudioElement = null;
+let aiAudioListenerAttached = false;
+let patientAudioRecorder = null;
+let patientAudioSendingActive = false;
+const PATIENT_AUDIO_CHUNK_MS = 4000; // send audio every 4 seconds when in AI session
 
 // ICE Config
 const rtcConfig = {
@@ -32,6 +38,118 @@ function decodeJWT(token) {
   }
 }
 
+function getAiConsultationFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('aiConsultation') === 'true' || params.get('aiConsultation') === '1';
+}
+
+function displayAiAvatar(placement) {
+  const container = document.getElementById('videoContainer');
+  const existing = container.querySelector('.ai-avatar-placeholder');
+  if (existing) existing.remove();
+
+  const isRemote = placement === 'remote';
+  const wrapper = document.createElement('div');
+  wrapper.className = 'video-participant ai-avatar-placeholder ' + (isRemote ? 'remote' : 'local');
+  wrapper.innerHTML = `
+    <div class="ai-avatar">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1c2.76 0 5 2.24 5 5v1h1c.55 0 1 .45 1 1v2c0 .55-.45 1-1 1h-1v1c0 2.76-2.24 5-5 5h-2c-2.76 0-5-2.24-5-5v-1H4c-.55 0-1-.45-1-1v-2c0-.55.45-1 1-1h1v-1c0-2.76 2.24-5 5-5h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z" fill="currentColor"/>
+        <circle cx="9" cy="13" r="1.5" fill="var(--background)"/>
+        <circle cx="15" cy="13" r="1.5" fill="var(--background)"/>
+      </svg>
+    </div>
+    <div class="participant-info">
+      <div class="participant-name">${isRemote ? 'AI Doctor' : 'You (AI)'}</div>
+      <div class="participant-role">${isRemote ? 'Listening...' : 'Connected'}</div>
+    </div>
+  `;
+  if (isRemote) {
+    wrapper.id = 'remoteVideoContainer';
+    const first = container.querySelector('.local') || container.firstElementChild;
+    if (first) container.insertBefore(wrapper, first);
+    else container.appendChild(wrapper);
+  } else {
+    container.insertBefore(wrapper, container.firstElementChild);
+  }
+}
+
+function setupAiAudioListener() {
+  if (!aiAudioElement) {
+    aiAudioElement = document.createElement('audio');
+    aiAudioElement.setAttribute('autoplay', '');
+    aiAudioElement.style.display = 'none';
+    document.body.appendChild(aiAudioElement);
+  }
+  if (aiAudioListenerAttached || !socket) return;
+  aiAudioListenerAttached = true;
+  socket.on('ai-audio', (audioBase64) => {
+    if (!audioBase64 || !aiAudioElement) return;
+    try {
+      const binary = atob(audioBase64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: 'audio/mpeg' });
+      const url = URL.createObjectURL(blob);
+      aiAudioElement.src = url;
+      aiAudioElement.play().catch(() => {});
+      aiAudioElement.onended = () => URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('ai-audio play error', e);
+    }
+  });
+}
+
+function startPatientAudioSend() {
+  if (!isAiDoctorSession || !localStream || !socket || !socket.connected) return;
+  const audioTracks = localStream.getAudioTracks();
+  if (audioTracks.length === 0) return;
+  if (patientAudioRecorder) return;
+
+  const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+
+  function scheduleChunk() {
+    if (!patientAudioSendingActive || !localStream || !socket || !socket.connected) return;
+    const stream = new MediaStream(localStream.getAudioTracks());
+    const recorder = new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 128000 });
+    recorder.ondataavailable = (e) => {
+      if (e.data.size === 0 || isMuted) return;
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = btoa(String.fromCharCode.apply(null, new Uint8Array(reader.result)));
+        socket.emit('patient-audio', { audio: base64 });
+      };
+      reader.readAsArrayBuffer(e.data);
+    };
+    recorder.onstop = () => {
+      patientAudioRecorder = null;
+      if (patientAudioSendingActive) setTimeout(scheduleChunk, 100);
+    };
+    patientAudioRecorder = recorder;
+    recorder.start();
+    setTimeout(() => {
+      if (recorder.state === 'recording') recorder.stop();
+    }, PATIENT_AUDIO_CHUNK_MS);
+  }
+
+  try {
+    patientAudioSendingActive = true;
+    scheduleChunk();
+    showStatus('Speak now — the AI will respond in a few seconds.');
+    console.log('[AI Session] Sending complete webm every', PATIENT_AUDIO_CHUNK_MS / 1000, 's');
+  } catch (e) {
+    console.error('Failed to start patient audio send', e);
+  }
+}
+
+function stopPatientAudioSend() {
+  patientAudioSendingActive = false;
+  if (patientAudioRecorder && patientAudioRecorder.state !== 'inactive') {
+    patientAudioRecorder.stop();
+    patientAudioRecorder = null;
+  }
+}
+
 async function initializeCall() {
   const token = getTokenFromURL();
   if (!token) return showError('No token found');
@@ -41,11 +159,25 @@ async function initializeCall() {
 
   currentRole = payload.role;
   currentSessionId = payload.sessionId;
+  isAiDoctorSession = currentRole === 'ai-doctor' || getAiConsultationFromURL();
 
-  // Update UI
   const sessionInfoEl = document.getElementById('sessionInfo');
-  if (sessionInfoEl) sessionInfoEl.textContent = `Session: ${currentSessionId.substr(0,8)}... | Role: ${currentRole}`;
-  
+  if (sessionInfoEl) sessionInfoEl.textContent = `Session: ${currentSessionId.substr(0,8)}... | Role: ${currentRole}${isAiDoctorSession ? ' (AI)' : ''}`;
+
+  if (currentRole === 'ai-doctor') {
+    updateStatus('Connecting...');
+    displayAiAvatar('local');
+    socket = io();
+    socket.on('connect', () => {
+      updateStatus('Connected');
+      socket.emit('join-room', currentSessionId, currentRole);
+      setupAiAudioListener();
+    });
+    document.getElementById('toggleMic')?.setAttribute('disabled', 'true');
+    document.getElementById('toggleCamera')?.setAttribute('disabled', 'true');
+    return;
+  }
+
   updateStatus('Requesting Media Access...');
 
   try {
@@ -53,35 +185,40 @@ async function initializeCall() {
         video: { width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: true
     });
-    
+
     displayLocalVideo(localStream);
+    if (isAiDoctorSession) {
+      displayAiAvatar('remote');
+    }
     updateStatus('Connecting to Server...');
 
-    // Connect Socket options
-    // Note: 'io' global is provided by /socket.io/socket.io.js
-    socket = io(); 
+    socket = io();
 
     socket.on('connect', () => {
         updateStatus('Connected to Signaling Server');
         console.log('Socket connected:', socket.id);
         socket.emit('join-room', currentSessionId, currentRole);
+        if (isAiDoctorSession) {
+          setupAiAudioListener();
+          startPatientAudioSend();
+        }
     });
 
     socket.on('user-connected', (userId) => {
         console.log('User connected:', userId);
+        if (isAiDoctorSession && typeof userId === 'string' && userId.startsWith('ai-doctor')) {
+          showStatus('AI Doctor is here. You can speak.');
+          return;
+        }
         showStatus('Peer joined. Connecting...');
-        // We are the existing user, so we initiate the offer
         createPeerConnection();
         createOffer();
     });
 
-    // Handle signals passed via 'signal' event or specific events
-    // Backend implementation:
-    // socket.to(room).emit('signal', { sender: socket.id, ...rest });
-
     socket.on('signal', async (data) => {
         const { type, sdp, candidate } = data;
-        
+        if (isAiDoctorSession && !peerConnection) return;
+
         if (!peerConnection) createPeerConnection();
 
         if (type === 'offer') {
@@ -100,9 +237,6 @@ async function initializeCall() {
             }
         }
     });
-
-    // Legacy handler if we change backend logic slightly
-    // socket.on('offer') ... etc
 
   } catch (err) {
     console.error(err);
@@ -271,6 +405,7 @@ document.getElementById('toggleCamera')?.addEventListener('click', (e) => {
 });
 
 document.getElementById('leaveCall')?.addEventListener('click', () => {
+    stopPatientAudioSend();
     if (confirm('Leave call?')) window.close();
 });
 

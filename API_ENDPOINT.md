@@ -32,6 +32,11 @@ This document lists all the API endpoints exposed by the various microservices i
 | `POST` | `/:id/start-call` | (Doctor) Initialize a video session for the appointment. | Yes |
 | `POST` | `/:id/join-call` | (Patient) Get a token/URL to join the video session. | Yes |
 
+### **AI Consultation** (`/ai-consultation`)
+| Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/start` | Start an AI consultation: create video session, join patient, join AI doctor to room; returns room join URL. | Yes |
+
 ### **System**
 | Method | Endpoint | Description | Auth Required |
 | :--- | :--- | :--- | :--- |
